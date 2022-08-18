@@ -56,33 +56,44 @@ void OrientationFilter::processPath(const geometry_msgs::PoseStamped& start,
     if (n == 0) return;
     switch(omode_) {
         case FORWARD:
+            ROS_INFO("FORWARD");
             for(int i=0;i<n-1;i++){
                 setAngleBasedOnPositionDerivative(path, i);
             }
             break;
         case BACKWARD:
+            ROS_INFO("BACKWARD");
+
             for(int i=0;i<n-1;i++){
                 setAngleBasedOnPositionDerivative(path, i);
                 set_angle(&path[i], angles::normalize_angle(tf2::getYaw(path[i].pose.orientation) + M_PI));
             }
             break;
         case LEFTWARD:
+            ROS_INFO("LEFTWARD");
+        
             for(int i=0;i<n-1;i++){
                 setAngleBasedOnPositionDerivative(path, i);
                 set_angle(&path[i], angles::normalize_angle(tf2::getYaw(path[i].pose.orientation) - M_PI_2));
             }
             break;
         case RIGHTWARD:
+            ROS_INFO("RIGHTWARD");
+
             for(int i=0;i<n-1;i++){
                 setAngleBasedOnPositionDerivative(path, i);
                 set_angle(&path[i], angles::normalize_angle(tf2::getYaw(path[i].pose.orientation) + M_PI_2));
             }
             break;
         case INTERPOLATE:
+            ROS_INFO("INTERPOLATE");
+
             path[0].pose.orientation = start.pose.orientation;
             interpolate(path, 0, n-1);
             break;
         case FORWARDTHENINTERPOLATE:
+            ROS_INFO("FORWARDTHENINTERPOLATE");
+
             for(int i=0;i<n-1;i++){
                 setAngleBasedOnPositionDerivative(path, i);
             }

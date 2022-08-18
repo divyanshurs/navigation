@@ -37,6 +37,7 @@
 #ifndef GLOBAL_PLANNER_ORIENTATION_FILTER_H
 #define GLOBAL_PLANNER_ORIENTATION_FILTER_H
 #include <nav_msgs/Path.h>
+#include <ros/ros.h>
 
 namespace global_planner {
 
@@ -44,7 +45,7 @@ enum OrientationMode { NONE, FORWARD, INTERPOLATE, FORWARDTHENINTERPOLATE, BACKW
 
 class OrientationFilter {
     public:
-        OrientationFilter() : omode_(NONE) {}
+        OrientationFilter() : omode_(INTERPOLATE) {}
     
     
         virtual void processPath(const geometry_msgs::PoseStamped& start,

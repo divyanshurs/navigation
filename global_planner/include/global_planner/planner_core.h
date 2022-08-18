@@ -52,6 +52,7 @@
 #include <global_planner/traceback.h>
 #include <global_planner/orientation_filter.h>
 #include <global_planner/GlobalPlannerConfig.h>
+#include <tf/tf.h>
 
 namespace global_planner {
 
@@ -113,6 +114,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         bool makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, double tolerance,
                       std::vector<geometry_msgs::PoseStamped>& plan);
 
+        void set_direction(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, double ang_thresh = 10);
         /**
          * @brief  Computes the full navigation function for the map given a point in the world to start from
          * @param world_point The point to use for seeding the navigation function
@@ -204,6 +206,9 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
 
         dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig> *dsrv_;
         void reconfigureCB(global_planner::GlobalPlannerConfig &config, uint32_t level);
+
+        int orientation_mode_;
+        double distance_threshold_;
 
 };
 

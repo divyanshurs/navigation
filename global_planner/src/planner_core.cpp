@@ -145,6 +145,8 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         private_nh.param("default_tolerance", default_tolerance_, 0.0);
         private_nh.param("publish_scale", publish_scale_, 100);
         private_nh.param("outline_map", outline_map_, true);
+        private_nh.param("orientation_mode", orientation_mode_, 1);
+        private_nh.param("distance_threshold", distance_threshold_, 1.0);
 
         make_plan_srv_ = private_nh.advertiseService("make_plan", &GlobalPlanner::makePlanService, this);
 
@@ -167,6 +169,7 @@ void GlobalPlanner::reconfigureCB(global_planner::GlobalPlannerConfig& config, u
     publish_potential_ = config.publish_potential;
     orientation_filter_->setMode(config.orientation_mode);
     orientation_filter_->setWindowSize(config.orientation_window_size);
+    // double dd = config.dist;
 }
 
 void GlobalPlanner::clearRobotCell(const geometry_msgs::PoseStamped& global_pose, unsigned int mx, unsigned int my) {
@@ -215,6 +218,71 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     return makePlan(start, goal, default_tolerance_, plan);
 }
 
+void GlobalPlanner::set_direction(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, double ang_thresh)
+{
+    //getting current angle of the robot
+    tf::Quaternion q(
+            start.pose.orientation.x,
+            start.pose.orientation.y,
+            start.pose.orientation.z,
+            start.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll_start, pitch_start, yaw_start;
+    m.getRPY(roll_start, pitch_start, yaw_start); 
+    
+    //finding the angle between robot and the goal
+    double s_x = start.pose.position.x;
+    double s_y = start.pose.position.y;
+    double g_x = goal.pose.position.x;
+    double g_y = goal.pose.position.y;
+
+    //Creating two vecs one of robot and other from start to goal to measure angle and direction
+    double vec1_x = cos(yaw_start);
+    double vec1_y = sin(yaw_start);
+
+    double vec2_x = (g_x - s_x);
+    double vec2_y = (g_y - s_y);
+    //To cal distance
+    double distance = sqrt(pow(vec2_x,2) + pow(vec2_y,2));
+
+    //This gives me the angle but has no clue of left and right. Hence doing a cross product for that.
+    double curr_ang = acos((vec1_x*vec2_x + vec1_y*vec2_y)/ sqrt(pow(vec2_x,2) + pow(vec2_y,2)));  
+    //This is cross product of 2 vecs in 2D space get sign of this to see left and right
+    double dir_cal = vec1_x*vec2_y - vec1_y*vec2_x;
+
+    curr_ang = curr_ang*180/M_PI;
+
+    // ROS_INFO("ROBOT_YAW: %f", curr_ang);
+    
+    // if(dir_cal>0) ;
+    bool left_dir = false;
+    if(dir_cal>0) 
+    {
+        // ROS_INFO("LEFT");
+        left_dir = true;
+    }
+    // else
+    // {
+    //     ROS_INFO("RIGHT");
+    // } 
+
+    if(distance > distance_threshold_)
+    {
+        ROS_INFO("SAFE GLOBAL PLANNER: Distance exceeded the limit given. Robot chosing the FORWARD direction");
+        orientation_filter_->setMode(1);
+    }
+    else
+    {
+        if(curr_ang<=45) orientation_filter_->setMode(1); //FORWARD both sides because it does not care about side
+        if(curr_ang> 45 && curr_ang < 135 && left_dir) orientation_filter_->setMode(5); //LEFT
+        if(curr_ang> 45 && curr_ang < 135 && !left_dir) orientation_filter_->setMode(6); //RIGHT
+        if(curr_ang >= 135) orientation_filter_->setMode(4); //Back
+    }
+
+
+}
+
+
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                            double tolerance, std::vector<geometry_msgs::PoseStamped>& plan) {
     boost::mutex::scoped_lock lock(mutex_);
@@ -226,6 +294,9 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     //clear the plan, just in case
     plan.clear();
+
+    // ROS_INFO("HI I WAS CALLED");
+    set_direction(start, goal);
 
     ros::NodeHandle n;
     std::string global_frame = frame_id_;
@@ -320,6 +391,13 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     delete[] potential_array_;
     return !plan.empty();
 }
+
+// void GlobalPlanner::update_plan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
+//                                 const std::vector<geometry_msgs::PoseStamped>& path)
+// {
+
+
+// }
 
 void GlobalPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& path) {
     if (!initialized_) {
